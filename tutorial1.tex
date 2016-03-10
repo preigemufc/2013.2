@@ -1,0 +1,359 @@
+\documentclass{article}
+
+\usepackage[brazil]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+\newenvironment{definition}[1][Definição]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+
+\begin{document}
+
+\begin{center}
+\Large{ \textbf{Systems Biology Club \\ 
+				Universidade Federal do Ceará \\
+				Workshop de capacitação 2013.2 \\
+				\begin{minipage}[t][.5cm][t]{.08\textwidth}
+				\centering
+				\includegraphics[scale=.3]{by-nc.png}
+				\end{minipage}
+				\begin{minipage}[t][1cm][t]{.05\textwidth}
+				\centering
+				\normalsize\copyright
+				\end{minipage}\\	
+				%				
+				Órbitas de sistemas dinâmicos e diagramas de bifurcação em Python\\				
+				}}
+\normalsize 
+
+Renato Marques de Oliveira \\[2cm]
+\end{center}
+
+
+Neste tutorial vamos estudar técnicas importantes e simples para a exploração de sistemas dinâmicos. A principal utilidade deste documento é introduzir o leitor aos algoritmos usados para gerar os gráficos qualitativos de sistemas dinâmicos. Não é necessária a compreensão letra-por-letra dos scripts reproduzidos aqui, apenas se propõe que o leitor entenda o que está acontecendo por detrás do código: a motivação pelo qual ele foi escrito. 
+
+Reconceituando, um sistema dinâmico é um modelo formal (matemático) de um processo envolvendo diferentes elementos. Utilizamos o termo ``sistema'' para delimitar fronteiras no mundo real: dizemos que o nosso organismo é um grande sistema constituído de um conjunto de sistemas, como o sistema circulatório, o sistema digestório e o sistema linfático. Ao mesmo tempo, cada ser humano pertence a um ecossistema (mesmo que isso não seja óbvio nos centros urbanos), e toda a biosfera, a superfície e o interior da Terra pertencem ao sistema solar. Um sistema dinâmico é uma forma de representação quantitativa de modo a auxiliar na nossa compreensão do sistema original. 
+ 
+Sistemas dinâmicos geralmente variam com o tempo, e são totalmente descritos pelas três seguintes partes:
+\begin{description}
+\item[Variável independente] Em suma, todo o sistema dinâmico evolui de acordo com o tempo, que é escolhido como a variável independente do qual todas as outras variáveis vão depender. No entanto, além do tempo, também é comum adotar o espaço como variável independente. 
+\item[Variáveis dependentes] São os elementos (as diferentes partes) de um sistema que se conectam e interagem ao longo do tempo. As variáveis dependentes são por sua vez funções da variável independente (pois variam com o tempo).
+\item[Regra de evolução] Uma função das variáveis dependentes que determina as relações entre elas e o modo como elas evoluem com o tempo.
+\end{description}
+
+A grande utilidade desse formalismo é a compreensão completa do comportamento do sistema modelado. Claro, todo modelo é uma aproximação, e é justamente escolhendo modelos úteis para as situações que queremos estudar que podemos compreender bastante sobre o nosso sistema, dentro do âmbito do modelo. Um dos objetivos deste minicurso é a introdução de técnicas para a análise do comportamento de sistemas dinâmicos. Para tanto, vamos começar com um modelo bem simples.
+
+Digamos que nós queremos montar um biorreator para a produção de um metabólito. Vamos supor condições tais que não precisamos nos preocupar com a capacidade máxima do reator. Nosso sistema será constituído de três partes, a taxa de produção do metabólito (por unidade  de tempo), a concentração do metabólito (a cada unidade de tempo) e o tempo; respectivamente a regra de evolução, a variável dependente e a variável independente. Além disso, vamos fazer medidas do reator em intervalos regulares, de modo que nosso modelo vai evoluir com o tempo de forma discreta (ao invés de contínua). Para definir nosso modelo, apresentamos as relações entre todas as partes através de uma equação:
+\begin{equation}
+F(x) = x^2 + c
+\label{def1}
+\end{equation}
+onde $x$ é a concentração de metabólito no instante $t$, $F(x)$ é a concentração de metabólito no instante $t+1$ e $c$ é um parâmetro que representa algo como a extração ou a complementação de metabólito, de acordo com o sinal. No caso, temos um modelo simplificado de produção metabólica. Expressamos a produção através da própria concentração de metabólito, numa espécie de feedback positivo, desconsiderando ou simplificando caminhos intermediários. 
+
+Para entendermos a dinâmica do nosso sistema, começamos buscando pelos pontos mais evidentes: a concentração de equilíbrio. Quantas e quais concentrações de equilíbrio podemos ter? Bom, temos que, no equilíbrio, a concentração de metabólito não varia. Portanto, substituímos a concentração de equilírio $x^*$ na equação \ref{def1} e calculamos o seu valor:
+\begin{eqnarray*}
+x^* = (x^*)^2 + c \\
+(x^*)^2 - x^* + c = 0 
+\end{eqnarray*}
+\begin{equation}
+x^{*}_{-} = \frac{1-\sqrt{-4c+1}}{2} \textrm{ ; } x^*_+ = \frac{1+\sqrt{-4c+1}}{2}
+\label{eq1}
+\end{equation}
+temos portanto não mais que dois possíveis pontos de equilíbrio. Vemos que se $c > \frac{1}{4}$, não há equilíbrio; se $c = \frac{1}{4}$, há um equilíbrio; e se $c < \frac{1}{4}$, há dois equilíbrios. Neste ponto já podemos fazer o gráfico de $F(x)$. Lembrando que, em Python, comentários são marcados com \#.
+
+\begin{verbatim}
+# -*- coding: utf-8 -*- 
+## A linha acima é necessária para uso de caracteres latinos ##
+# Este é um comentário. Tudo o que estiver escrito após o "#"
+# será ignorado pelo interpretador.
+
+from numpy import *
+from pylab import *
+
+# Antes de mais nada, carregamos o pacote de funções 
+# matemáticas "numpy" e o pacote de criação de gráficos 
+# "matplotlib", que é distribuído sob o nome de "pylab".
+
+def f(x,c):
+    return x**2 + c 
+
+# "def f(x,c)" é a sintaxe de declaração de uma função chamada
+# "f" que recebe "x" e "c" como argumentos. ":" denota que há um
+# bloco de comandos a partir da linha seguinte, pertencente à
+# função "f". Neste caso, o bloco é formado por apenas um comando:
+# retorne o valor de x**2 + c, lembrando que x**2 é a sintaxe do
+# Python para a função quadrado. 
+
+x = linspace(-2,2,30)
+
+# A função "linspace(a,b,c)" retorna um vetor de (a + b)/c
+# elementos, iniciando em "a", terminando em "b", espaçados
+# por "c". Ela gera a sequência de valores de x que vamos passar
+# à função para plotagem. 
+
+plot(x, f(x,.05))
+
+# A função "plot(a,b)" plota o vetor "b" contra o vetor "a",
+# ambos de mesmo tamanho, na forma de pontos {(a1,b1),...,(an,bn)}
+# se a = [a1,...,an] e b = [b1,...,bn]. O comando "f(x,.5)"
+# gera um vetor de 30 elementos que corresponde à imagem do
+# vetor "x" sob a função "f".
+
+show()
+
+# Já que o Python não mostra instantaneamente os gráficos
+# gerados, precisamos pedir para que eles sejam mostrados
+# através do comando "show". 
+\end{verbatim}
+
+O gráfico obtido deverá parecer com a figura \ref{fig1}.
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[scale=.5]{figure_1.pdf} 
+\caption{Gráfico de $F(x)$ com $c = \frac{1}{20}$.}\label{fig1}
+\end{center}
+\end{figure}
+
+
+Tomei a liberdade de adicionar a linha verde através do comando \\
+\texttt{plot([0,2],[0,2])}. Este comando gera uma linha que conecta os pontos $(0,0)$ e $(2,2)$, representando uma reta onde $x = x$. Logo, temos que os pontos de equilíbrio $(x^*_-,F(x^*_-))$ e $(x^*_+,F(x^*_+))$ de $F(x)$ em azul devem estar na interseção com a reta verde.
+
+Em um curso de Cálculo introdutório, é neste ponto que costumávamos parar. Mas para continuar com a análise, temos que responder questões como: se o sistema iniciar com uma concentração $x = 1$, em qual dos pontos de equilíbrio ele ``estacionará''? Como o sistema se aproxima dos pontos de equilíbrio? Aliás, o sistema chega realmente a se aproximar dos pontos de equilíbrio? Para tanto, é necessário introduzir o conceito de órbita.
+
+\begin{definition}
+A \emph{órbita} de um sistema discreto é o conjunto de pontos visitados pelo sistema a cada intervalo de tempo. (Tecnicamente, uma órbita é uma sequência de iterações da regra de evolução de um sistema dinâmico discreto sobre um valor inicial das variáveis dependentes)
+\end{definition}
+
+
+Para observar a órbita do nosso sistema, precisamos escolher um valor inicial $x_0$. Em seguida, calculamos a posição do sistema no instante seguinte por $x_1 = F(x_0)$. Depois, repetimos o procedimento, $x_2 = F(x_1)$ e assim por diante, até o instante $n$. A posição no instante $n$ é dada por 
+\[
+\begin{array}{c}
+ \underbrace{F(F(...(F(x_0))))} \\ n \textrm{ vezes}
+\end{array} 
+= 
+\begin{array}{c}
+ \underbrace{F \circ F \circ ... \circ F(x_0)} \\ n \textrm{ vezes}
+\end{array} 
+=
+F^n(x_0)
+\]
+$F^n(x_0)$ é uma forma abreviada de expressar ``$n$ iterações de $F$ sobre o valor inicial $x_0$'', e não serve para representar uma potência. A órbita do nosso sistema vai ser a sequência dada por 
+\[
+\{x_0,F(x_0),F^2(x_0),...,F^n(x_0)\}\textrm{ ou } \{x_0,x_1,x_2,...,x_n\}
+\]
+Podemos plotar a nossa órbita de acordo com o tempo, assim como podemos inseri-la no gráfico da figura \ref{fig1}. Executamos a segunda opção na figura \ref{fig2:sfig1}. Vamos explicar o que está acontecendo nesta figura. Iniciamos com o valor $x_0 = 0.5$. No gráfico, representamos isso como uma linha que sobe do eixo $X$ a partir de $x = 0.5$ até a curva azul da função em $F(0.5) = 0.3 = x_1$. Em seguida, traçamos uma linha até a reta verde $x=x$. O ponto que atingimos após traçar essa linha é $(F(x_0),F(x_0))$, pois estávamos na altura de $F(x_0)$, e seguimos nessa altura até a reta verde onde $x = F(x_0)$ e $y = F(x_0)$. Desta forma, chegamos à localização $x_1$ no eixo $X$. Em seguida, repetimos o procedimento anterior, e traçamos uma linha reta até o gráfico azul de $F(x)$ para descobrirmos $F(x_1) = 0.14 = x_2$. Mais uma vez, traçamos uma linha até a reta verde $x=x$ para descobrir a localização de $x_2$ no eixo $X$. Repetindo esse processo $n$ vezes, descobrimos a trajetória do sistema ao longo do gráfico de $F(x)$, representada pelas linhas vermelhas, até o instante $n$. Na figura \ref{fig2:sfig1}, notamos que a trajetória tende ao equilíbrio menor, $(x^*_-,x^*_-)$.
+
+\begin{figure}
+\centering
+\subfigure[Órbita de $F(x)$ iniciando em $x_0 = 0.5$ ($c = \frac{1}{20}$)]{
+\includegraphics[width=11cm]{figure_2.pdf}
+\label{fig2:sfig1}
+}
+\subfigure[Órbitas de $F(x)$ iniciando em $x_0 = 0.7$, $0.9$ e $0.95$ ($c = \frac{1}{20}$)]{
+\includegraphics[width=11cm]{figure_3.pdf}
+\label{fig2:sfig2}
+}
+\caption{Órbitas de $F(x)$ plotadas no gráfico $x \times F(x)$.}
+\label{fig2}
+\end{figure}
+
+Na figura \ref{fig2:sfig2}, plotamos três trajetórias diferentes ao mesmo tempo, todas próximas do equilíbrio maior $(x^*_+,x^*_+)$. Notamos que as órbitas parecem fugir desse equilíbrio. O código para gerar esses gráficos é significativamente mais complexo e será colocado ao final do tutorial.
+
+Outra forma de plotar a órbita do nosso valor inicial é fazendo um gráfico de $F(x) \times \textrm{tempo}$, como representado na figura \ref{fig3}. Note que órbitas iniciando abaixo de $x_0 = x^*_+ \approx 0.94$ tendem à $x^*_-$, e a órbita de $x_0 = 0.955$ cresce violentamente após algumas iterações para longe de $x^*_+$. Apesar das órbitas próximas fugirem de $x^*_+$, note pela figura \ref{fig4} que uma órbita iniciada em $x^*_+$ permanecerá estática, pois afinal $x^*_+$ é um ponto de equilíbrio! 
+
+\begin{verbatim}
+# -*- coding: utf-8 -*-
+from numpy import *
+from pylab import *
+
+def f(x0,c,n):
+    x=zeros(n)
+    x[0] = x0
+    for i in range(1,n):
+        x[i] = x[i-1]**2 + c
+    return x 
+
+t = 10
+plot(range(t),f(.5,.05,t))
+show()
+\end{verbatim}
+
+\texttt{f(x0,c,n)} é uma função que é iterada \texttt{n} vezes sobre o valor inicial \texttt{x0}, possuindo um parâmetro ajustável \texttt{c}. \texttt{x = zeros(n)} declara um vetor de tamanho n que guardará os \texttt{n} valores \texttt{x0,x1,...,xn} da órbita de \texttt{x0}.
+
+À cada iteração do loop, a função \texttt{F(x) = x**2 + c} será iterada sobre a posição anterior \texttt{x[n - 1]}. O comando \texttt{range(1,n)} gera uma lista iniciada em \texttt{1} porque a posição \texttt{x[0]} já está determinada pelo nosso valor inicial.
+
+\texttt{t = 10} declara a quantidade de passos que calcularemos, e logo abaixo plotamos a função \texttt{f} com valor inicial \texttt{x0 = 0.5}, parâmetro \texttt{c = 0.05} iterada por \texttt{t = 10} passos.
+
+\begin{figure}[hbtp]
+\centering
+\includegraphics[width=\textwidth]{figure_4.pdf}
+\caption{Órbitas dos valores iniciais $x_0 = 0.5, 0.7, 0.9 \textrm{ e } 0.955$, respectivamente da esquerda para a direita, de cima à baixo. As órbitas são acompanhadas até o instante $t = 9$. ($c = \frac{1}{20}$)}
+\label{fig3}
+\end{figure}
+
+\begin{figure}[hbtp]
+\centering
+\includegraphics[width=9cm]{figure_5.pdf}
+\caption{Órbita de $x_0 = x^*_+$. ($c = \frac{1}{20}$)}
+\label{fig4}
+\end{figure}
+
+Ao invés de chamarmos $(x^*,x^*)$ de pontos ``de equilíbrio'', o mais apropriado é nos referirmos a eles como \emph{pontos fixos}. Um ponto fixo de uma função é aquele para o qual $F(x_{n+1}) = F(x_n)$. Inspirados pelos gráficos já plotados, podemos inferir que o equilíbrio menor é estável, enquanto que o equilíbrio maior é instável. Em termos técnicos, o ponto fixo menor é atrator, enquanto que o ponto fixo maior é repulsor. 
+
+\begin{definition}
+Um ponto fixo atrator é um ponto $x^*$ dentro de um intervalo aberto $I$ para o qual, se $x_0 \in I$, então $F^n(x_0) \in I$ para todo $n$, além disso $F^n(x_0) \rightarrow x^*$ quando $n \rightarrow \infty $.
+\end{definition}
+\begin{definition}
+Um ponto fixo repulsor é um ponto $x^*$ dentro de um intervalo $I$ para o qual, se $x_0 \in I$ e $x_0 \neq x^*$, existe $n$ tal que $F^n(x_0) \not\in I$.
+\end{definition}
+
+Essas definições não passam de formas técnicas de dizer que pontos fixos atratores atraem órbitas para si, e pontos fixos repulsores repelem órbitas de si. Como descobrir se um ponto fixo é atrator ou repulsor? Uma dica: observe a derivada de $F(x)$ no ponto fixo. Se $|F'(x^*)| > 1$, a distância \[
+F^{n+1}(x) - F^n(x) = F'(x)(x_{n+1} - x_n)
+\] tende a crescer a cada iteração de $F(x)$, para $x$ próximos de $x^*$, e a órbita acaba se distanciando de $x^*$. Caso $|F'(x^*)| < 1$, essa distância tende a diminuir, e o ponto fixo $x^*$ acaba atraindo órbitas. Caso $|F'(x^*)| = 1$, não podemos afirmar.
+
+A esta altura, sabemos muito bem como é o comportamento completo de $F(x)$ quando $c = \frac{1}{20}$. Qualquer valor inicial $x_0 < x^*_+$ tende à $x^*_-$, qualquer valor inicial $x_0 > x^*_+$ tende à infinito, e quando o sistema atinge os pontos fixos lá ele permanece. No entanto, tecnicamente existe uma infinidade incontável de valores de $c$ para os quais não descrevemos a dinâmica de $F(x)$. Vamos fazer isso agora.
+
+Sabemos que a existência de pontos fixos depende do parâmetro $c$, e caso $c>1/4$, de acordo com a equação \ref{eq1} não haverão pontos fixos e $F^n(x) \rightarrow \infty$.\footnote{pois $F(x)$ é uma função par, simétrica sobre a origem e estritamente crescente no intervalo $[0,\infty)$} Caso $c = 1/4$, a equação \ref{eq1} diz que $x^*_- = x^*_+ = x^* = 1/2$, ou seja, temos apenas um ponto fixo, sendo que $F'(x^*) = 2x^* = 1$. Por fim, caso $c < 1/4$, temos dois pontos fixos, o menor sendo atrator e o maior sendo repulsor. 
+
+Agora, se olharmos bem para $x^*_-$, quando $c \leq -3/4$ a equação \ref{eq1} nos diz que $x^*_- \leq -1/2$ e portanto que $F'(x^*_-) \leq -1$. O ponto fixo $x^*_-$ mudaria de atrator para repulsor! Sem contar que no parágrafo acima encontramos um ponto fixo de estabilidade indeterminada. Para estudar esses fenômenos, utilizamos a \textbf{Teoria da Bifurcação}. Como uma imagem vale mais do que mil palavras, vou apresentar esta teoria com um gráfico, um \textbf{diagrama de bifurcação}.
+
+\begin{figure}[hbtp]
+\centering
+\includegraphics[width=10cm]{figure_6.pdf}
+\caption{Diagrama de bifurcação de $F(x)$ para $-3/4 < c < 1/2$. Linhas contínuas representam atratores e linhas pontilhadas representam repulsores. As setas indicam a direção que as órbitas seguem em seus pontos de origem.}
+\label{fig5}
+\end{figure}
+
+A figura \ref{fig5}, um diagrama de bifurcação, mostra um gráfico dos pontos fixos \emph{versus} o parâmetro $c$. Neste gráfico está resumido quase todo o nosso conhecimento sobre o sistema $F(x) = x^2+c$. Se traçarmos uma linha vertical em qualquer ponto do eixo $c$ deste gráfico, obteremos um retrato do sistema que captura toda a sua dinâmica para o parâmetro $c$ de escolha. 
+
+O código para a confecção da figura \ref{fig5} encontra-se abaixo. Não foi incluído o código que gera as setas.
+\begin{verbatim}
+# -*- coding: utf-8 -*-
+from numpy import *
+from pylab import *
+
+def x_1(c): 
+    return (1 - sqrt(1 - 4*c))/2.
+
+def x_2(c):
+    return (1 + sqrt(1 - 4*c))/2.
+
+c = linspace(-.75,.25,100)
+plot(c,x_1(c),'b')          # 'b' é um argumento opcional 
+plot(c,x_2(c),'--b')        # 'b--' quer dizer "linha tracejada azul"
+xlabel('$c$',fontsize=30)   # rótulos dos eixos x e y, tipografados
+ylabel('$x^*$',fontsize=30) # e com tamanho de fonte personalizado.
+show()
+\end{verbatim}
+
+\subsection*{Interpretação bioquímica do modelo matemático}
+Enfim, agora que temos uma imagem tão geometricamente completa do nosso modelo na figura \ref{fig5}, o que podemos dizer do sistema original a partir disso? Primeiro e mais importante de tudo, podemos checar nossas suposições iniciais. Não fui totalmente honesto à princípio, pois não declarei as unidades que utilizaríamos para nossas variáveis. $x$ é a concentração de metabólito, mas seria ela em mol/L, porcentagem ou pressão parcial (obviamente, temos por análise dimensional que $F(x)$ e $c$ possuem as mesmas unidades de $x$), por exemplo? E quanto ao tempo $t$? Apesar de não entrar diretamente na equação, $t$ representa a unidade de tempo relevante do estudo e norteará a magnitude dos outros parâmetros estudados. Para muitos modelos populacionais importantes, a unidade de tempo $t$ considera é um ano, mas quando falamos de populações humanas ou bacterianas, um ano tende a ser uma unidade de tempo muito inadequada. 
+
+Neste tutorial, estamos fazendo alguns passos na ordem inversa: escolhendo as suposições antes de definir o modelo, mas isto é apenas para ilustrar o poder de generalização dos modelos. Observemos a figura \ref{fig5}: o ponto fixo maior sempre é repulsor (em termos mais familiares, o equilíbrio maior sempre é instável). Se temos uma população inicial superior à $x^*_+$, ela crescerá, do contrário, diminuirá \textbf{até zero}, na direção de $x^*_-$. Isso é muito importante: num sistema químico ou biológico real, concentrações e populações jamais atingem valores negativos, não faria sentido! Para entender melhor, vamos considerar a reta vertical $c = 0$. Lembre que no início nós definimos $c$ como um fator externo que retira ou repõe a concentração do nosso metabólito. Na reta $c = 0$, o modelo reduz para 
+\begin{equation}
+F(x) = x^2
+\label{eqsimples}
+\end{equation}
+E os pontos fixos se tornam
+\begin{equation}
+{x^*_- = 0, x^*_+ = 1}
+\end{equation}
+Ou seja, a concentração de metabólito no instante $t + 1$ só depende da concentração no instante anterior, sem influência externa. Portanto, se a concentração inicial for $1$, a concentração permanecerá em $1$. Qualquer concentração maior do que $1$ crescerá de forma não-linear. Qualquer concentração menor do que $1$ tenderá a diminuir até $0$, o ponto fixo menor. Ignoramos concentrações negativas. Nestes termos, nossa regra de evolução, equação \ref{eqsimples}, se comporta quase exatamente como um crescimento exponencial $G(x) = \mu x$. Fica bastante fácil de interpretar o modelo geral, $F(x) = x^2 + c$, pensando nele como um modelo $G(x)$ com a adição de um fator de reposição/retirada. O efeito do parâmetro $c$ é apenas de reduzir/aumentar o ponto fixo maior, ignorando o fato de o ponto fixo menor atingir valores negativos para $c < 0$ (apenas mapeamos valores negativos de $x$ de volta para o zero e lavamos as mãos). 
+
+Com isso, temos que é inadequado adotar variáveis \emph{adimensionais} para $x$, tais como porcentagem e frações totais, pois o modelo não apresenta comportamento interessante entre $0$ e $1$ - é recomendado que se utilizem concentrações ou quantidades absolutas, como peso, volume ou molar. 
+
+\section*{Exercícios}
+\paragraph{1} Relembre o caso $F(x) = x^2 + c$, com $c = 1/4$. Neste caso, tínhamos apenas um ponto fixo, com $F'(x^*) = 1$. Descreva as trajetórias de órbitas iniciando ao redor desse ponto. O que ocorre com uma órbita iniciando em $x_0  < 1/4$? E se $x_0 > 1/4$, ou $x_0 = 1/4$? O que podemos inferir sobre a estabilidade desse ponto? Utilize o diagrama de bifurcação, ou plote as respectivas órbitas caso precise visualizar o que acontece.
+
+\paragraph{2} Ainda no caso $c = 0$. Existe diferença no modo pelo qual uma órbita iniciando em $x_0$ é atraída para $x^*_-$ nos casos $x_0 < x^*_-$ e $x_0 > x^*_+$. Descreva essa diferença e explique por que ela acontece. (\textbf{Dica:} você pode inclusive utilizar uma calculadora para calcular $F(x_0), F^2(x_0), F^3(x_0)...$ e obter as órbitas pedidas.)
+
+\paragraph{3} Na questão 1, estudamos o caso $c = 1/4$ em que há apenas um ponto fixo. Quando $c > 1/4$ não temos pontos fixos, mas quando passamos pelo ponto $c = 1/4$ surge um ponto fixo que se ``bifurca'' em dois outros, $x^*_-$ e $x^*_+$. É o estudo dessas bifurcações que caracteriza a Teoria da Bifurcação. Existem outras bifurcações que ocorrem para a nossa função $F(x) = x^2 + c$. Vamos analisar o caso $c = -3/4$, onde vimos que $F'(x^*) = -1$. Consideramos então 
+\begin{equation}
+F(x) = x^2 - 3/4
+\label{eq34}
+\end{equation}
+para a qual temos dois pontos fixos $x^*_- = -3/2 \textrm{ e } x^*_+ = 1/2$.
+\subparagraph{a)} Plote a órbita de alguns pontos $x_0$ ao redor de $x^*_+ = 1/2$. Descreva o comportamento ``periódico'' das órbitas. (\textbf{Dica:} você pode utilizar o código da figura \ref{fig2} para executar esta tarefa. Por exemplo, após executar o código da figura \ref{fig2}, execute as seguintes linhas
+\begin{verbatim}
+def f(x,c):
+    return x**2 + c
+cobweb(f,-2,2,-3/4,1/3)
+\end{verbatim}
+para plotar uma órbita iniciando em $x_0 = 1/3$ com $c = -3/4$.)
+
+\subparagraph{b)} Para calcular o ponto $x_2$ na órbita de $x_0$, utilizamos \mbox{$x_2 = F(x_1) = F(F(x_0))$}, sendo que \begin{equation}
+F^2(x) = F(F(x)) = x^4 + 2cx^2 + c(1 + c)
+\label{f2_x}
+\end{equation}
+que pode possuir quatro pontos fixos: \[
+x^*_1 = \frac{-1 -\sqrt{-4c - 3}}{2}, x^*_2 = \frac{-1 + \sqrt{-4c - 3}}{2}, x^*_3 = \frac{1 -\sqrt{-4c + 1}}{2}, x^*_4 = \frac{1 +\sqrt{-4c + 1}}{2}
+\]
+Pergunta-se: É possível que existam os pontos fixos $x^*_1$ e $x^*_2$ quando $c > -3/4$? Qual a possível implicação disso para as órbitas de $x_0$ sob $F(x)$ quando o parâmetro $c$ varia entre $c > -3/4$ e $c < -3/4$?
+
+\subparagraph{c)} Determine a estabilidade dos quatro pontos fixos da equação \ref{f2_x} através de $(F^2(x^*_n))'$, $n = 1,2,3,4$. Qual é a relação entre as estabilidades dos pontos fixos de $F^2(x)$, $x^*_1$, $x^*_2$, e $x^*_3$, e o surgimento de um ciclo para $F(x) = x^2 + c$ quando $c \leq -3/4$? 
+
+\subparagraph{d)} Observe a figura \ref{fig6}. Ela utiliza informações dos quatro pontos fixos de $F^2(x)$ para fornecer uma diagrama de bifurcação mais completo de $F(x)$. Localize os dois pontos de bifurcação na figura. O ponto mais à direita nós já conhecíamos: a esse tipo de bifurcação se dá o nome \textbf{sela-nó}. Ao ponto de bifurcação mais à esquerda se dá o nome \textbf{duplicação de período}. Copie esse gráfico (para uma folha de papel, por exemplo) e desenhe as setas representando as direções das órbitas assim como na figura \ref{fig5}. Explique porque as retas cheias e pontilhadas (pontos atratores e repulsores) tem que se alternar.
+
+\begin{figure}[hb]
+\centering
+\includegraphics[width=7cm]{figure_7.pdf}
+\caption{Diagrama de bifurcação da equação \ref{eq1} para $-2 < c < \frac{1}{2}$.}
+\label{fig6}
+\end{figure}
+
+\textbf{Obs.} Note que os pontos fixos $x^*_1$ e $x^*_2$ só são \emph{estritamente} pontos fixos para $F^2(x)$. Para $F(x)$ eles são periódicos, no sentido de que se alternam a cada dois passos. Pontos que são revisitados após um período $n$ são chamados pontos fixos periódicos de período $n$. Veja a figura \ref{fig7}.
+
+\section*{Código da Figura 2}
+\begin{verbatim}
+from __future__ import division
+from numpy import *
+from pylab import *
+
+
+def cobweb(f,start,end,p,x0,steps=10,smoothness=100):
+    xv = linspace(start,end,smoothness)
+    plot(xv,f(xv,p),color='b')
+    plot(xv,xv,color='g')
+    plot([xv[0],xv[len(xv) - 1]],[0,0],color='k')
+    x = zeros(steps)
+    x[0] = f(x0,p)
+    plot([x0,x0],[0,x[0]],color='r')
+    plot([x0,x[0]],[x[0],x[0]],color='r')
+    for i in xrange(steps-1):
+        x[i+1] = f(x[i],p)
+        plot([x[i],x[i]],[x[i],x[i+1]],color='r')
+        plot([x[i],x[i+1]],[x[i+1],x[i+1]],color='r')
+    show()    
+ 
+def f(x,c):
+    return x**2 + c
+  
+cobweb(f,-2,2,.05,.7)
+cobweb(f,-2,2,.05,.9)
+cobweb(f,-2,2,.05,.95)
+\end{verbatim}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=9cm]{figure_8.pdf}
+\caption{Gráfico de $x \times F^2(x)$, para $c = -3/4$ (esquerda) e $c = -1/2$ (direita). Note que a existência de 4 ou 2 pontos fixos para $F^2(x)$ depende da escolha do parâmetro $c$, que afeta o modo como o gráfico da função se curva em torno da reta $x = x$. Observe também a estabilidade de alguns dos pontos fixos. }
+\label{fig7}
+\end{figure}
+
+\section*{Referências}
+Este tutorial foi inspirado no livro \emph{A First Course in Chaotic Dynamical Systems}, por Robert L. Devaney. (1992, Addison-Wesley). \\
+
+\begin{minipage}{.15\textwidth}
+\includegraphics[scale=.5]{by-nc.png}
+\end{minipage}
+\begin{minipage}{.9\textwidth}
+\copyright Systems Biology Club. \emph{Órbitas de sistemas dinâmicos e diagramas de bifurcação em Python.} Esta obra está licenciada sob a licença Creative Commons Atribuição-NãoComercial 3.0 Não Adaptada. Para ver uma cópia desta licença, visite \mbox{http://creativecommons.org/licenses/by-nc/3.0/deed.pt\_BR}.
+\end{minipage}
+ 
+
+\end{document}
+
